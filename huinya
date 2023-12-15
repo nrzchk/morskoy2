@@ -1,0 +1,493 @@
+#include <iostream>
+
+#include <vector>
+
+#include <cstdlib>
+
+#include <ctime>
+
+using namespace std;
+
+const int SIZE = 10;
+const int SHIPS = 10;
+const int ONE_CELL_SHIPS = 4;
+const int TWO_CELL_SHIPS = 3;
+const int THREE_CELL_SHIPS = 2;
+const int FOUR_CELL_SHIPS = 1;
+
+enum class CellState {
+
+	Empty,
+
+	Ship,
+
+	Miss,
+
+	Hit
+
+};
+
+struct Cell {
+
+	CellState state;
+
+	bool revealed;
+
+};
+
+struct Ship {
+
+	int size;
+
+	int hits;
+
+};
+
+typedef vector<vector<Cell>> Board;
+
+void printBoard(const Board& board, bool revealShips) {
+	cout << " ";
+	for (int i = 0; i < SIZE; ++i) {
+		cout << i << " ";
+	}
+	cout << endl;
+
+	for (int i = 0; i < SIZE; ++i) {
+		cout << i << " ";
+		for (int j = 0; j < SIZE; ++j) {
+			if (revealShips) {
+				switch (board[i][j].state) {
+				case CellState::Empty:
+					cout << "- ";
+					break;
+				case CellState::Ship:
+					cout << "S ";
+					break;
+				case CellState::Miss:
+					cout << "M ";
+					break;
+				case CellState::Hit:
+					cout << "X ";
+					break;
+				}
+			}
+			else {
+				if (board[i][j].revealed) {
+					switch (board[i][j].state) {
+					case CellState::Empty:
+						cout << "- ";
+						break;
+					case CellState::Miss:
+						cout << "M ";
+						break;
+					case CellState::Hit:
+						cout << "X ";
+						break;
+					}
+				}
+				else {
+					cout << "- ";
+				}
+			}
+		}
+		cout << endl;
+	}
+	cout << endl;
+}
+
+void initializeBoard(Board& board) {
+
+	board.clear();
+
+	board.resize(SIZE, vector<Cell>(SIZE, { CellState::Empty, false }));
+
+}
+
+void placeShip(Board& board, int row, int col, int size, bool vertical) {
+
+	if (vertical) {
+
+		for (int i = row; i < row + size; ++i) {
+
+			board[i][col].state = CellState::Ship;
+
+		}
+
+	}
+	else {
+
+		for (int j = col; j < col + size; ++j) {
+
+			board[row][j].state = CellState::Ship;
+
+		}
+
+	}
+
+}
+
+bool isValidPlacement(const Board& board, int row, int col, int size, bool vertical) {
+
+	if (vertical) {
+
+		if (row + size > SIZE) {
+
+			return false;
+
+		}
+
+		for (int i = row; i < row + size; ++i) {
+
+			if (board[i][col].state != CellState::Empty) {
+
+				return false;
+
+			}
+
+		}
+
+	}
+	else {
+
+		if (col + size > SIZE) {
+
+			return false;
+
+		}
+
+		for (int j = col; j < col + size; ++j) {
+
+			if (board[row][j].state != CellState::Empty) {
+
+				return false;
+
+			}
+
+		}
+
+	}
+
+	return true;
+
+}
+
+void manuallyPlaceShips(Board& board) {
+	int shipsPlaced = 0;
+	int currentShipSize = 1;
+
+	while (shipsPlaced < SHIPS) {
+		printBoard(board, false);
+
+		cout << "Enter ship #" << shipsPlaced + 1 << " location and orientation (row col vertical): ";
+		int row, col, vertical;
+		cin >> row >> col >> vertical;
+
+		if (row < 0 || row >= SIZE || col < 0 || col >= SIZE || (vertical != 0 && vertical != 1)) {
+			cout << "Invalid input. Try again." << endl;
+			continue;
+		}
+
+		if (isValidPlacement(board, row, col, currentShipSize, vertical)) {
+			placeShip(board, row, col, currentShipSize, vertical);
+
+			shipsPlaced++;
+
+			if (shipsPlaced == ONE_CELL_SHIPS) {
+				currentShipSize = 2;
+			}
+			else if (shipsPlaced == ONE_CELL_SHIPS + TWO_CELL_SHIPS) {
+				currentShipSize = 3;
+			}
+			else if (shipsPlaced == ONE_CELL_SHIPS + TWO_CELL_SHIPS + THREE_CELL_SHIPS) {
+				currentShipSize = 4;
+			}
+		}
+		else {
+			cout << "Invalid placement. Try again." << endl;
+		}
+	}
+}
+
+void randomlyPlaceShips(Board& board) {
+	int shipsPlaced = 0;
+	int currentShipSize = 1;
+
+	while (shipsPlaced < SHIPS) {
+		int row = rand() % SIZE;
+		int col = rand() % SIZE;
+		bool vertical = rand() % 2 == 0;
+
+		if (isValidPlacement(board, row, col, currentShipSize, vertical)) {
+			placeShip(board, row, col, currentShipSize, vertical);
+
+			shipsPlaced++;
+
+			if (shipsPlaced == ONE_CELL_SHIPS) {
+				currentShipSize = 2;
+			}
+			else if (shipsPlaced == ONE_CELL_SHIPS + TWO_CELL_SHIPS) {
+				currentShipSize = 3;
+			}
+			else if (shipsPlaced == ONE_CELL_SHIPS + TWO_CELL_SHIPS + THREE_CELL_SHIPS) {
+				currentShipSize = 4;
+			}
+		}
+	}
+}
+
+bool isGameOver(const Board& board) {
+	int totalHits = 0;
+
+	for (int i = 0; i < SIZE; ++i) {
+		for (int j = 0; j < SIZE; ++j) {
+			if (board[i][j].state == CellState::Hit) {
+				totalHits++;
+			}
+		}
+	}
+
+	return totalHits == SHIPS;
+}
+
+bool isValidMove(const Board& board, int row, int col) {
+
+	return row >= 0 && row < SIZE && col >= 0 && col < SIZE && !board[row][col].revealed;
+
+}
+
+void playerTurn(Board& playerBoard, Board& computerBoard) {
+
+	printBoard(computerBoard, false);
+
+	cout << "Enter your move (row col): ";
+
+	int row, col;
+
+	cin >> row >> col;
+
+	if (!isValidMove(computerBoard, row, col)) {
+		cout << "Invalid move. Try again." << endl;
+
+		playerTurn(playerBoard, computerBoard);
+
+		return;
+
+	}
+
+	switch (computerBoard[row][col].state) {
+
+	case CellState::Empty:
+
+		cout << "You missed!" << endl;
+
+		computerBoard[row][col].state = CellState::Miss;
+
+		break;
+
+	case CellState::Ship:
+
+		cout << "You hit a ship!" << endl;
+
+		computerBoard[row][col].state = CellState::Hit;
+
+		break;
+
+	case CellState::Miss:
+
+	case CellState::Hit:
+
+		cout << "You've already made that move. Try again." << endl;
+
+		playerTurn(playerBoard, computerBoard);
+
+		return;
+
+	}
+
+	computerBoard[row][col].revealed = true;
+
+	if (isGameOver(computerBoard)) {
+
+		cout << "Congratulations! You sank all the enemy ships. You win!" << endl;
+
+		return;
+
+	}
+
+	cout << "Computer's turn..." << endl;
+
+	int computerRow, computerCol;
+
+	do {
+
+		computerRow = rand() % SIZE;
+
+		computerCol = rand() % SIZE;
+
+	} while (!isValidMove(playerBoard, computerRow, computerCol));
+
+	switch (playerBoard[computerRow][computerCol].state) {
+
+	case CellState::Empty:
+
+		cout << "Computer missed!" << endl;
+
+		playerBoard[computerRow][computerCol].state = CellState::Miss;
+
+		break;
+
+	case CellState::Ship:
+
+		cout << "Computer hit your ship!" << endl;
+
+		playerBoard[computerRow][computerCol].state = CellState::Hit;
+
+		break;
+
+	case CellState::Miss:
+
+	case CellState::Hit:
+
+		// This case should not occur, as the computer should only make valid moves
+
+		break;
+
+	}
+
+	playerBoard[computerRow][computerCol].revealed = true;
+
+	if (isGameOver(playerBoard)) {
+
+		cout << "Oh no! The enemy sank all your ships. You lose!" << endl;
+
+		return;
+
+	}
+
+	playerTurn(playerBoard, computerBoard);
+
+}
+
+void computerTurn(Board& playerBoard, Board& computerBoard) {
+
+	int row, col;
+
+	do {
+
+		row = rand() % SIZE;
+
+		col = rand() % SIZE;
+
+	} while (!isValidMove(playerBoard, row, col));
+
+	switch (playerBoard[row][col].state) {
+
+	case CellState::Empty:
+
+		cout << "Computer missed!" << endl;
+
+		playerBoard[row][col].state = CellState::Miss;
+
+		break;
+
+	case CellState::Ship:
+
+		cout << "Computer hit your ship!" << endl;
+
+		playerBoard[row][col].state = CellState::Hit;
+
+		break;
+
+	case CellState::Miss:
+
+	case CellState::Hit:
+
+		// This case should not occur, as the computer should only make valid moves
+
+		break;
+
+	}
+
+	playerBoard[row][col].revealed = true;
+
+	if (isGameOver(playerBoard)) {
+
+		cout << "Oh no! The enemy sank all your ships. You lose!" << endl;
+
+		return;
+
+	}
+
+	computerTurn(playerBoard, computerBoard);
+
+}
+
+int main() {
+
+	srand(time(0));
+
+	Board playerBoard;
+
+	Board computerBoard;
+
+	initializeBoard(playerBoard);
+
+	initializeBoard(computerBoard);
+
+	cout << "Welcome to Battleship!" << endl;
+
+	cout << "Enter 1 to manually place your ships, or 2 to have the computer place them: ";
+
+	int placementOption;
+
+	cin >> placementOption;
+
+	if (placementOption == 1) {
+
+		manuallyPlaceShips(playerBoard);
+
+	}
+	else if (placementOption == 2) {
+
+		randomlyPlaceShips(playerBoard);
+
+	}
+	else {
+
+		cout << "Invalid option. Exiting the game." << endl;
+
+		return 0;
+
+	}
+
+	randomlyPlaceShips(computerBoard);
+
+	cout << "Let the battle begin!" << endl;
+
+	cout << "Choose the game mode: 1 - Player vs. Computer, 2 - Computer vs. Computer: ";
+
+	int gameMode;
+
+	cin >> gameMode;
+
+	if (gameMode == 1) {
+
+		playerTurn(playerBoard, computerBoard);
+
+	}
+	else if (gameMode == 2) {
+
+		computerTurn(playerBoard, computerBoard);
+
+	}
+	else {
+
+		cout << "Invalid game mode. Exiting the game." << endl;
+
+		return 0;
+
+	}
+
+	return 0;
+
+}
